@@ -18,6 +18,7 @@
    Author       : Gabriele Zambelli
    Twitter      : @gazambelli
    Repository   : https://github.com/forensenellanebbia
+   Blog post    : https://forensenellanebbia.blogspot.com/2018/12/what-was-my-ip-ask-dosvc-on-windows-10.html
    Version      : 1.0
    Creation date: 05/12/2018
 #>
