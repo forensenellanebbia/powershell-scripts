@@ -130,7 +130,7 @@ if($path)
 			(Get-Content $f_ip2loc_json | ConvertFrom-Json) | Export-Csv $f_ip2loc_csv -NoTypeInformation
 
 			#SUMMARY: UNIQUE IP ADDRESSES
-			Write-Host "Unique IPs found : $($ip_uniq.count)" -ForegroundColor Green
+			Write-Host "Unique IPs found  : $($ip_uniq.count)" -ForegroundColor Green
 			Write-Host "`nWarning: IP geolocation data could be inaccurate and should be treated with caution" -ForegroundColor Red -BackgroundColor White
 			$ip2loc = (Get-Content $f_ip2loc_json | ConvertFrom-Json)
 			$ip2loc | Select-Object  @{Name="ExternalIp";Expression={$_.query}},isp,city,countrycode | Format-Table -AutoSize
