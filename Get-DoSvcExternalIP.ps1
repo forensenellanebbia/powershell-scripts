@@ -24,17 +24,21 @@
    Twitter      : @gazambelli
    Repository   : https://github.com/forensenellanebbia
    Blog post    : https://forensenellanebbia.blogspot.it/2018/12/what-was-my-ip-ask-dosvc-on-windows-10.html
+   DFIR Review  : https://dfir.pubpub.org/pub/httnwst7
 
    CHANGELOG
-   2019/01/31: Fixed compatibility issues with Win10 1809 ETL logs which 
+   2019-04-03: Added progress bars and a warning message
+   2019-01-31: Fixed compatibility issues with Win10 1809 ETL logs which 
                may contain more than one "ExternalIpAddress" per file
-   2018/12/05: First release
+   2018-12-05: First release
 #>
 
 [CmdletBinding()]
 Param([Parameter(Mandatory=$false,Position=0)][string]$path)
 
-$script_version = "2019/01/31"
+$script_version = "2019-04-03"
+
+Write-Host "`nGet-DoSvcExternalIP (v.$($script_version))`n" -ForegroundColor Cyan
 
 if($path)
 	{
@@ -51,9 +55,12 @@ if($path)
 	$items = Get-ChildItem $path -File -Filter "*.etl" -Recurse | Sort-Object Name
 	if($items)
 		{
-        Write-Host "`nAnalyzing $($items.Count) ETL file(s)...`n"
+        Write-Host "ETL files found   : $($items.Count)" -ForegroundColor Green
+        $c1 = 0 #counter
 		foreach($item in $items.FullName)
 			{
+            $c1++
+            Write-Progress -Activity "Processing Event Trace Log (.etl) files:" -Status "Processing $($c1) of $($items.Count)" -CurrentOperation $item
 			#Decode logs + add a column named LogName which contains the name and path of the log file
 			$results = Get-DeliveryOptimizationLog -Path $item | ForEach-Object {$_ | Add-Member -MemberType NoteProperty -Name LogName -Value $item -PassThru}
 			#SEARCH FOR THE STRING "ExternalIP"
@@ -102,14 +109,15 @@ if($path)
 			$ip_uniq = $csv | Select-Object ExternalIpAddress -unique #get unique IP addresses
 			$ip_uniq = ($ip_uniq | Select-Object -ExpandProperty ExternalIpAddress) | Sort-Object { [version]$_ } #sort by IP address
 			Add-Content $f_ip2loc_json -Value "["
-			$i = 0
+			$c2 = 0
 			foreach($ip in $ip_uniq)
 				{
+				$c2++
+                Write-Progress -Activity "Performing IP location lookup:" -Status "Processing $($c2) of $($ip_uniq.Count)" -CurrentOperation $ip
 				Start-Sleep -Seconds 3 #Waiting time between API calls
 				$url = "http://ip-api.com/json/" + $ip #http://ip-api.com/docs/api:json
 				$LoginResponse = Invoke-WebRequest $url
-				$i++
-				if ($i -lt $ip_uniq.Count)
+				if ($c2 -lt $ip_uniq.Count)
 					{
 					$line = $LoginResponse.Content + ","
 					Add-Content $f_ip2loc_json -Value $line
@@ -122,19 +130,20 @@ if($path)
 			(Get-Content $f_ip2loc_json | ConvertFrom-Json) | Export-Csv $f_ip2loc_csv -NoTypeInformation
 
 			#SUMMARY: UNIQUE IP ADDRESSES
-			Write-Output ("`nUnique IP(s) found: " + $ip_uniq.count)
+			Write-Host "Unique IPs found : $($ip_uniq.count)" -ForegroundColor Green
+			Write-Host "`nWarning: IP geolocation data could be inaccurate and should be treated with caution" -ForegroundColor Red -BackgroundColor White
 			$ip2loc = (Get-Content $f_ip2loc_json | ConvertFrom-Json)
 			$ip2loc | Select-Object  @{Name="ExternalIp";Expression={$_.query}},isp,city,countrycode | Format-Table -AutoSize
-			Write-Host "Done! For more details, see the output files:`n==> $f_ip_csv`n==> $f_ip_json`n==> $f_ip2loc_csv`n==> $f_ip2loc_json`n"
+			Write-Host "Done! For more details, see the output files under the current path:`n==> $f_ip_csv`n==> $f_ip_json`n==> $f_ip2loc_csv`n==> $f_ip2loc_json`n"
 			}
 		else
 			{
-			Write-Host "No IP address found`n"
+			Write-Host "IP addresses found: 0`n" -ForegroundColor Yellow
 			}
 		}
 	else
 		{
-		Write-Host "`nNo ETL files found`n"
+		Write-Host "ETL files found: 0`n" -ForegroundColor Yellow
 		}
 	}
 else
