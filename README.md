@@ -1,6 +1,6 @@
 # powershell-scripts
 
-**Get-DoSvcExternalIP.ps1** extracts external/public IP addresses from DoSvc ETL logs and performs an IP Address Lookup.
+**Get-DoSvc4n6.ps1** extracts external/public IP addresses and more from DoSvc ETL logs.
 Depending on the version of Win10, Delivery Optimization Logs are stored by default in the path:
 - [1507]  C:\Windows\Logs\dosvc
 - [1709+] C:\Windows\ServiceProfiles\NetworkService\AppData\Local\Microsoft\Windows\DeliveryOptimization\Logs
