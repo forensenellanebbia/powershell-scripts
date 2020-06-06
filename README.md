@@ -9,3 +9,5 @@ Blog post: https://forensenellanebbia.blogspot.com/2018/12/what-was-my-ip-ask-do
 DFIR Review: https://dfir.pubpub.org/pub/httnwst7
 
 ~~**Get-VlcLastPlayedPosition.ps1** extracts the last played position of the files opened with VLC media player. The script parses the *RecentsMRL* section of the *vlc-qt-interface.ini* file which is located under: *C:\Users\\<username\>\AppData\Roaming\vlc*~~ I replaced this script with another version available [here](https://github.com/forensenellanebbia/python27-scripts).
+
+**bulk_downloader.ps1** downloads files in bulk from conference websites
