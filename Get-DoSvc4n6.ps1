@@ -37,9 +37,11 @@ WARNING: This program is provided "as-is"
   .PARAMETER ExternalIP
    Extracts all the external/public IP addresses assigned by an Internet Service Provider (ISP)
   .PARAMETER ExtractAll
-   If used, the script will extract DiskInfo + CaptivePortal + ExternalIP + InternalIP + LocalPeers + ShutdownTime events
+   If used, the script will extract DiskInfo + CaptivePortal + ExternalIP + InternalIP + LocalPeers + ShutdownTime events. It won't to any geolocation.
   .PARAMETER GeolocationAPI
-   Allows to choose among four different APIs. If not set, "ip-api" is used by default. API authorization keys are not required.
+   Allows to choose among a few APIs. If needed, use -TokenAPI to provide the authorization token.
+  .PARAMETER TokenAPI
+   Allows to provide the API token for the geolocation service to be used
   .PARAMETER InternalIP
    Extracts all the internal/private IP addresses assigned to the computer
   .PARAMETER LocalPeers
@@ -66,14 +68,17 @@ WARNING: This program is provided "as-is"
 
    This command recursively parses a path, extracts external/public IP addresses, doesn't do any IP location lookup and saves the output files to a custom path.
   .EXAMPLE
-   Get-DoSvc4n6.ps1 C:\CustomLogPath -InternalIP -PowerState -ExternalIP -GeolocationAPI KeyCDN -TimeFormat LocalTime
+   Get-DoSvc4n6.ps1 C:\CustomLogPath -InternalIP -PowerState -ExternalIP -GeolocationAPI ipwhois -TimeFormat LocalTime
 
-   This command recursively parses a custom path, extracts the events related to the selected categories, uses the KeyCDN API and shows timestamps in local time.
+   This command recursively parses a custom path, extracts the events related to the selected categories, uses the ipwhois API and shows timestamps in local time.
   .NOTES
    Author       : Gabriele Zambelli
    Twitter      : @gazambelli
 
    CHANGELOG
+   2021-08-13: [CHANGED] Removed KeyCDN
+               [ FIXED ] ipinfo.io requires a token in the URL
+			   [  NEW  ] Added the parameter TokenAPI to provide the needed token
    2019-08-23: [  NEW  ] Added compatibility for Google Timesketch
                [  NEW  ] Added new switches to extract more data: 
                          DiskInfo, CaptivePortal, ExternalIP, InternalIP, LocalPeers, PowerState, ShutdownTime, ExtractAll
@@ -109,7 +114,8 @@ Param (
 [switch]$PowerState,
 [switch]$ShutdownTime,
 [switch]$ExtractAll,
-[ValidateSet("KeyCDN","ipwhois","ipinfo","ip-api")][string]$GeolocationAPI,
+[ValidateSet("ipwhois","ipinfo","ip-api")][string]$GeolocationAPI,
+[Parameter(Mandatory=$false)][string]$TokenAPI,
 [switch]$SkipIP2Location,
 [ValidateSet("UTC","LocalTime")][string]$TimeFormat,
 [Parameter(Mandatory=$false)][string]$OutputPath
@@ -139,7 +145,7 @@ if(-Not ($CheckDeliveryOptimizationModule))
     }
 
 #region script title
-$script_version = "2019-08-23"
+$script_version = "2021-08-13"
 $script_name    = "Get-DoSvc4n6"
 
 #http://www.patorjk.com/software/taag/#p=display&f=Big&t=Get-DoSvc4n6
@@ -540,11 +546,7 @@ if($LogPath -and ($PSBoundParameters.Count -ge 2) -and ($PSBoundParameters.Conta
                                 else
                                     {
                                         #region GeolocationAPI
-                                        if($PSBoundParameters.ContainsValue('KeyCDN'))
-                                            {
-                                                $SwitchLabel = "IP2Location-API_KeyCDN"    
-                                            }
-                                        elseif($PSBoundParameters.ContainsValue('ipwhois'))
+                                        if($PSBoundParameters.ContainsValue('ipwhois'))
                                             {
                                                 $SwitchLabel = "IP2Location-API_ipwhois"    
                                             }
@@ -564,14 +566,7 @@ if($LogPath -and ($PSBoundParameters.Count -ge 2) -and ($PSBoundParameters.Conta
                                         foreach($IP in $IP_uniq)
                                             {
                                                 $IpProgressCounter++
-                                                if($PSBoundParameters.ContainsValue('KeyCDN'))
-                                                    {
-                                                        Write-Progress -Activity "Performing IP location lookup using KeyCDN API:" -Status "Processing $($IpProgressCounter) of $($IP_uniq.Count)" -CurrentOperation $IP
-                                                        $Ip2LocUrl = "https://tools.keycdn.com/geo.json?host=" + $IP #https://tools.keycdn.com/geo
-                                                        $ApiResponse = ((Invoke-WebRequest $Ip2LocUrl).Content | ConvertFrom-Json).data.geo | ConvertTo-Json
-                                                        Write-APIResponseToFile $IpProgressCounter $IP_uniq.Count $ApiResponse $FileExtIP2Loc_json
-                                                    }
-                                                elseif($PSBoundParameters.ContainsValue('ipwhois'))
+                                                if($PSBoundParameters.ContainsValue('ipwhois'))
                                                     {
                                                         Write-Progress -Activity "Performing IP location lookup using ipwhois API:" -Status "Processing $($IpProgressCounter) of $($IP_uniq.Count)" -CurrentOperation $IP
                                                         $Ip2LocUrl = "http://free.ipwhois.io/json/" + $IP #https://ipwhois.io/documentation
@@ -581,7 +576,7 @@ if($LogPath -and ($PSBoundParameters.Count -ge 2) -and ($PSBoundParameters.Conta
                                                 elseif($PSBoundParameters.ContainsValue('ipinfo'))
                                                     {
                                                         Write-Progress -Activity "Performing IP location lookup using ipinfo API:" -Status "Processing $($IpProgressCounter) of $($IP_uniq.Count)" -CurrentOperation $IP
-                                                        $Ip2LocUrl = "https://ipinfo.io/" + $IP #https://ipinfo.io/developers
+                                                        $Ip2LocUrl = "https://ipinfo.io/" + $IP + "?token=" + $TokenAPI #https://ipinfo.io/developers
                                                         $ApiResponse = (Invoke-WebRequest $Ip2LocUrl).Content
                                                         Write-APIResponseToFile $IpProgressCounter $IP_uniq.Count $ApiResponse $FileExtIP2Loc_json
                                                     }
@@ -600,15 +595,7 @@ if($LogPath -and ($PSBoundParameters.Count -ge 2) -and ($PSBoundParameters.Conta
                                         #SUMMARY: show unique IP addresses found
                                         Write-Host "`nWarning: IP geolocation data could be inaccurate and should be treated with caution" -ForegroundColor Red -BackgroundColor White
                                         $IP2Loc = (Get-Content $FileExtIP2Loc_json | ConvertFrom-Json)
-                                        if($PSBoundParameters.ContainsValue('KeyCDN'))
-                                            {
-                                                <#Fields in the response:
-                                                host,ip,rdns,asn,isp,country_name,country_code,region_name,region_code,city,
-                                                postal_code,continent_name,continent_code,latitude,longitude,metro_code,timezone,datetime
-                                                #>
-                                                $IP2Loc | Select-Object  @{Name="ExternalIp";Expression={$_.host}},asn,isp,city,country_code | Format-Table -AutoSize        
-                                            }
-                                        elseif($PSBoundParameters.ContainsValue('ipwhois'))
+                                        if($PSBoundParameters.ContainsValue('ipwhois'))
                                             {
                                                 <#Fields in the response:
                                                 ip,success,type,continent,continent_code,country,country_code,country_flag,country_capital,country_phone,
@@ -619,7 +606,7 @@ if($LogPath -and ($PSBoundParameters.Count -ge 2) -and ($PSBoundParameters.Conta
                                             }
                                         elseif($PSBoundParameters.ContainsValue('ipinfo'))
                                             {
-                                                #Fields in the response: ip,hostname,city,region,country,loc,org,postal,readme
+                                                #Fields in the response: ip,hostname,anycast,city,region,country,loc,org,postal,timezone
                                                 $IP2Loc | Select-Object  @{Name="ExternalIp";Expression={$_.ip}},org,city,country | Format-Table -AutoSize        
                                             }
                                         else
