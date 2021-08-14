@@ -25,10 +25,10 @@ WARNING: This program is provided "as-is"
    Win10 1507  | C:\Windows\Logs\dosvc
    Win10 1709+ | C:\Windows\ServiceProfiles\NetworkService\AppData\Local\Microsoft\Windows\DeliveryOptimization\Logs
 
-   Test environment: (OS) Windows 10 Pro ENG (version 1803/1809/1903) + Powershell 5.1
+   Test environment: (OS) Windows 10 Pro ENG (version 1803/1809/1903/21H1) + Powershell 5.1 + Powershell 7.1
    Script tested against logs collected from:
      - Windows 10 Home x86 ENG (version 1507)
-     - Windows 10 Pro  x64 ENG (version 1709/1803/1809/1903)
+     - Windows 10 Pro  x64 ENG (version 1709/1803/1809/1903/21H1)
      - Windows 10 Pro  x64 ITA (version 1809/1903)
   .PARAMETER DiskInfo
    Extracts the events containing information about computer disk space
@@ -37,7 +37,7 @@ WARNING: This program is provided "as-is"
   .PARAMETER ExternalIP
    Extracts all the external/public IP addresses assigned by an Internet Service Provider (ISP)
   .PARAMETER ExtractAll
-   If used, the script will extract DiskInfo + CaptivePortal + ExternalIP + InternalIP + LocalPeers + ShutdownTime events. It won't to any geolocation.
+   If used, the script will extract DiskInfo + CaptivePortal + ExternalIP + InternalIP + LocalPeers + PowerState + ShutdownTime events. It won't do any geolocation.
   .PARAMETER GeolocationAPI
    Allows to choose among a few APIs. If needed, use -TokenAPI to provide the authorization token.
   .PARAMETER TokenAPI
@@ -48,7 +48,7 @@ WARNING: This program is provided "as-is"
    Extracts the private IP addresses of "PCs on my local network". These events are stored in the ETL logs if the device has the following option turned ON:
    WindowsUpdate | Advanced Option | DeliveryOptimization | Allow downloads from other PCs
   .PARAMETER LogPath
-   Path containing the .etl files to analyze. LogPath can also be a filename.
+   Path containing the DoSvc .etl files to analyze. LogPath can also be a filename. The script will search recursively by default.
   .PARAMETER OutputPath
    Path where the output files will be written to. By default it's the current working directory.
   .PARAMETER PowerState
@@ -76,6 +76,7 @@ WARNING: This program is provided "as-is"
    Twitter      : @gazambelli
 
    CHANGELOG
+   2021-08-14: [ FIXED ] Minor bug fixes
    2021-08-13: [CHANGED] Removed KeyCDN
                [ FIXED ] ipinfo.io requires a token in the URL
 			   [  NEW  ] Added the parameter TokenAPI to provide the needed token
@@ -145,7 +146,7 @@ if(-Not ($CheckDeliveryOptimizationModule))
     }
 
 #region script title
-$script_version = "2021-08-13"
+$script_version = "2021-08-14"
 $script_name    = "Get-DoSvc4n6"
 
 #http://www.patorjk.com/software/taag/#p=display&f=Big&t=Get-DoSvc4n6
@@ -212,7 +213,7 @@ function Show-Results ($File_csv, $KeyCategory)
     }
 #endregion functions
 
-if($LogPath -and ($PSBoundParameters.Count -ge 2) -and ($PSBoundParameters.ContainsKey('DiskInfo') -or $PSBoundParameters.ContainsKey('CaptivePortal') -or $PSBoundParameters.ContainsKey('ExternalIP') -or $PSBoundParameters.ContainsKey('InternalIP') -or $PSBoundParameters.ContainsKey('LocalPeers') -or $PSBoundParameters.ContainsKey('PowerState') -or $PSBoundParameters.ContainsKey('ShutdownTime') -or $PSBoundParameters.ContainsKey('ExtractAll')))
+if($LogPath -and ($PSBoundParameters.Count -ge 2) -and ($PSBoundParameters.ContainsKey('DiskInfo') -or $PSBoundParameters.ContainsKey('CaptivePortal') -or $PSBoundParameters.ContainsKey('ExternalIP') -or $PSBoundParameters.ContainsKey('InternalIP') -or $PSBoundParameters.ContainsKey('LocalPeers') -or $PSBoundParameters.ContainsKey('PowerState') -or $PSBoundParameters.ContainsKey('ShutdownTime') -or $PSBoundParameters.ContainsKey('ExtractAll') -or $PSBoundParameters.ContainsKey('TokenAPI')))
     {
         $InitialDateTime = Get-Date
         $ScriptStartedDateTime = $InitialDateTime | Get-Date -Format "yyyyMMdd_HHmmss"
@@ -257,10 +258,10 @@ if($LogPath -and ($PSBoundParameters.Count -ge 2) -and ($PSBoundParameters.Conta
         #endregion check parameters
 
         #region ETL parsing
-        $ETLs = Get-ChildItem $LogPath -File -Filter "*.etl" -Recurse | Sort-Object Name
+        $ETLs = Get-ChildItem $LogPath -File -Include ("domgmt*.etl", "dosvc*.etl") -Recurse | Sort-Object Name
         if($ETLs)
             {
-                Write-Host "[+] ETL files found: $($ETLs.Count)" -ForegroundColor Green
+                Write-Host "[+] DoSvc ETL files found: $($ETLs.Count)" -ForegroundColor Green
                 $EtlProgressCounter = 0 #counter
                 foreach($ETL in $ETLs)
                     {
@@ -623,7 +624,7 @@ if($LogPath -and ($PSBoundParameters.Count -ge 2) -and ($PSBoundParameters.Conta
             }
         else
             {
-                Write-Host "[-] ETL files found: $($ETLs.Count)`n" -ForegroundColor Yellow
+                Write-Host "[-] DoSvc ETL files found: $($ETLs.Count)`n" -ForegroundColor Yellow
             }
         #endregion ETL parsing
 
