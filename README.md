@@ -12,6 +12,6 @@ DFIR Review: https://dfir.pubpub.org/pub/httnwst7
 
 **bulk_downloader.ps1** downloads files in bulk from conference websites
 
-**ConvertTo-LogonTracer.ps1** converts an XML file created with EvtxECmd to the XML format needed by LogonTracer. The script can also search for keywords and splits a large XML into smaller chunks. Before running the script, edit the "settings section" inside the script to set the variables related to: source file, destination path, keywords to search and desired max number of events per output file.
+**ConvertTo-LogonTracer.ps1** converts an XML file created with EvtxECmd to the XML format needed by LogonTracer. The script can also search for keywords and splits a large XML into smaller chunks. 
 
 Blog post: https://forensenellanebbia.blogspot.com/2020/12/lets-combine-evtxecmd-with-logontracer.html <br>
